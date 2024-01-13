@@ -1,0 +1,95 @@
+import tkinter as tk
+from tkinter import ttk
+import random
+from datetime import datetime
+from questions import load_questions, save_score
+
+class QuizGame:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Quiz Game")
+
+        self.questions = random.sample(load_questions(), len(load_questions()))
+        self.current_question_index = 0
+        self.score = 0
+        self.start_time = None
+
+        self.question_label = ttk.Label(root, text="")
+        self.option_buttons = []
+        self.feedback_label = ttk.Label(root, text="")
+        self.score_label = ttk.Label(root, text="Score: 0")
+
+        self.setup_ui()
+
+    def setup_ui(self):
+        self.question_label.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+        self.score_label.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
+
+        for i in range(4):
+            option_button = ttk.Button(self.root, text="", command=lambda i=i: self.check_answer(i))
+            option_button.grid(row=i + 2, column=0, columnspan=2, padx=10, pady=5)
+            self.option_buttons.append(option_button)
+
+        self.feedback_label.grid(row=6, column=0, columnspan=2, padx=10, pady=10)
+
+        self.next_question()
+
+    def next_question(self):
+        if self.current_question_index < len(self.questions):
+            question_data = self.questions[self.current_question_index]
+            self.start_time = datetime.now()
+
+            self.root.after(1000, self.update_timer)
+            self.question_label.config(text=question_data["question"])
+            options = question_data["options"]
+            random.shuffle(options)
+
+            for i in range(4):
+                self.option_buttons[i].config(text=options[i])
+
+        else:
+            self.display_results()
+
+    def check_answer(self, option_index):
+        selected_option = self.option_buttons[option_index]["text"]
+        correct_answer = self.questions[self.current_question_index]["answer"]
+
+        if selected_option == correct_answer:
+            self.score += 1
+            self.feedback_label.config(text="Correct!", foreground="green")
+        else:
+            self.feedback_label.config(text=f"Incorrect. Correct answer: {correct_answer}", foreground="red")
+
+        self.current_question_index += 1
+        self.score_label.config(text=f"Score: {self.score}")
+        self.clear_options()
+        self.next_question()
+
+    def clear_options(self):
+        for button in self.option_buttons:
+            button.config(state="normal")
+
+    def update_timer(self):
+        elapsed_time = datetime.now() - self.start_time
+        remaining_time = max(15 - elapsed_time.seconds, 0)
+
+        if remaining_time > 0:
+            self.root.after(1000, self.update_timer)
+        else:
+            self.feedback_label.config(text=f"Time's up! Correct answer: {self.questions[self.current_question_index]['answer']}", foreground="red")
+            self.current_question_index += 1
+            self.clear_options()
+            self.next_question()
+
+    def display_results(self):
+        result_text = f"Quiz completed!\nYour Score: {self.score}/{len(self.questions)}"
+        self.question_label.config(text=result_text)
+        for button in self.option_buttons:
+            button.grid_forget()
+
+        save_score(self.score)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = QuizGame(root)
+    root.mainloop()
